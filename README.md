@@ -2,6 +2,8 @@
 
 An interactive, high-fidelity world map flight connections visualizer using **True-to-Earth projections** and United Nations recognized nation-state country borders. AeroFlow features a futuristic dark-theme interface with smooth glassmorphism dashboards, glowing great-circle geodesic paths, and dynamic flight flow animations.
 
+**Live site:** [https://wlad-c.github.io/aero-flow/](https://wlad-c.github.io/aero-flow/)
+
 ![AeroFlow Interface Mockup](assets/screenshot.png)
 
 ## ✈️ Key Features
