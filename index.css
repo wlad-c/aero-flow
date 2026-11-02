@@ -629,6 +629,31 @@ input[type="text"]:focus + .search-icon {
     white-space: nowrap;
 }
 
+.route-panel-subheading {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-cyan);
+    margin-top: 12px;
+}
+
+.route-secondary-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 8px;
+}
+
+.route-secondary-list li {
+    font-size: 12px;
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 4px;
+}
+
 /* Projection Selector Buttons */
 .projection-toggle {
     display: flex;

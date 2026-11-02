@@ -2,6 +2,15 @@
 
 An interactive, high-fidelity world map flight connections visualizer using **True-to-Earth projections** and United Nations recognized nation-state country borders. AeroFlow features a futuristic dark-theme interface with smooth glassmorphism dashboards, glowing great-circle geodesic paths, and dynamic flight flow animations.
 
+**Live site:** [https://wlad-c.github.io/aero-flow/](https://wlad-c.github.io/aero-flow/)
+
+**iOS Home Screen:**
+1. Merge/deploy the latest manifest fix first (live site must show `start_url` of `https://wlad-c.github.io/aero-flow/`).
+2. On iPhone: Settings → Apps → Safari → Advanced → Website Data → remove `github.io` entries.
+3. Delete any existing AeroFlow home-screen icon.
+4. In Safari open **https://wlad-c.github.io/aero-flow/** (confirm the map loads).
+5. Share → Add to Home Screen.
+
 ![AeroFlow Interface Mockup](assets/screenshot.png)
 
 ## ✈️ Key Features
