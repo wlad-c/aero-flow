@@ -498,7 +498,7 @@ async function loadData() {
         // Parallel Fetch both data files
         const [geojsonRes, dataRes] = await Promise.all([
             fetch('data/countries.geojson?v=1'),
-            fetch('data/data.json?v=6')
+            fetch('data/data.json?v=7')
         ]);
 
         progressFill.style.width = "65%";
@@ -870,8 +870,8 @@ function initUI() {
 // Initialize Bottom Status Bar (Live Release & Last Update time)
 function initStatusBar() {
     // 1. Live Release Metadata
-    const releaseVersion = "v1.4.0"; // Corresponds to script v=14
-    const lastUpdateIso = "2026-05-31T06:30:14Z"; // ISO 8601 UTC timestamp of last update
+    const releaseVersion = "v1.5.0"; // Corresponds to script v=15 — flight data refresh + route airlines panel
+    const lastUpdateIso = "2026-11-01T16:40:00Z"; // ISO 8601 UTC timestamp of last update
     
     // Set Version Text
     const versionVal = document.getElementById('status-version-val');
@@ -1806,35 +1806,58 @@ function applyPointToPointFilter(fromIdx, toIdx) {
     document.getElementById('stat-extra-label').innerText = "Direct Flights";
     document.getElementById('stat-extra-value').innerText = directCount > 0 ? directCount : 'None';
 
+    // Unique airlines that operate the direct city-pair
+    const routeAirlines = [];
+    const seenAirlineCodes = new Set();
+    directRoutes.forEach(r => {
+        if (seenAirlineCodes.has(r.airline)) return;
+        seenAirlineCodes.add(r.airline);
+        const al = state.airlines[r.airline];
+        if (al) routeAirlines.push(al);
+    });
+    routeAirlines.sort((a, b) => a.name.localeCompare(b.name));
+
     // Description text
     const descText = document.getElementById('stats-desc-text');
+    const airlineSummary = routeAirlines.length
+        ? ` Operated by ${routeAirlines.map(a => a.name).join(', ')}.`
+        : '';
     if (state.connectionType === 'connecting') {
         if (directCount > 0) {
-            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''} found between ${fromAp.city} and ${toAp.city}. ${hubCount} possible 1-stop connection hubs shown.`;
+            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''} found between ${fromAp.city} and ${toAp.city}.${airlineSummary} ${hubCount} possible 1-stop connection hubs shown.`;
         } else {
             descText.innerText = `No direct flights between ${fromAp.city} and ${toAp.city}. Showing ${hubCount} possible 1-stop connection hub${hubCount !== 1 ? 's' : ''}.`;
         }
     } else if (state.connectionType === 'connecting-2') {
         if (directCount > 0) {
-            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''} found between ${fromAp.city} and ${toAp.city}. ${hubCount} possible 2-stop connection paths found.`;
+            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''} found between ${fromAp.city} and ${toAp.city}.${airlineSummary} ${hubCount} possible 2-stop connection paths found.`;
         } else {
             descText.innerText = `No direct flights between ${fromAp.city} and ${toAp.city}. Showing ${hubCount} possible 2-stop connection path${hubCount !== 1 ? 's' : ''}.`;
         }
     } else {
         if (directCount > 0) {
-            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''} found between ${fromAp.city} and ${toAp.city}.`;
+            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''} found between ${fromAp.city} and ${toAp.city}.${airlineSummary}`;
         } else {
             descText.innerText = `No direct flights between ${fromAp.city} and ${toAp.city}. Switch to 1-Stop to see connection hubs.`;
         }
     }
 
-    // Show hubs list
+    // Show operating airlines for the selected route, then optional connection lists
     const topHubsContainer = document.getElementById('top-hubs-container');
     const topHubsList = document.getElementById('top-hubs-list');
     topHubsList.innerHTML = '';
 
+    displayRouteAirlines(routeAirlines, fromAp, toAp);
+
     if (state.connectionType === 'connecting') {
-        topHubsContainer.querySelector('h3').innerText = '1-Stop Connection Hubs';
+        const hubsHeading = document.createElement('h3');
+        hubsHeading.className = 'route-panel-subheading';
+        hubsHeading.innerText = '1-Stop Connection Hubs';
+        topHubsList.parentElement.appendChild(hubsHeading);
+
+        const hubsList = document.createElement('ul');
+        hubsList.id = 'route-hubs-list';
+        hubsList.className = 'route-secondary-list';
 
         const sortedHubs = [...seenHubs.keys()]
             .map(idx => state.airports[idx])
@@ -1852,17 +1875,25 @@ function applyPointToPointFilter(fromIdx, toIdx) {
                 state.hoveredHubIndex = null;
                 markDirty();
             });
-            topHubsList.appendChild(li);
+            hubsList.appendChild(li);
         });
 
         if (sortedHubs.length === 0) {
             const li = document.createElement('li');
             li.innerHTML = `<span class="hub-name">No 1-stop hubs found</span>`;
-            topHubsList.appendChild(li);
+            hubsList.appendChild(li);
         }
+        topHubsList.parentElement.appendChild(hubsList);
         topHubsContainer.style.display = 'block';
     } else if (state.connectionType === 'connecting-2') {
-        topHubsContainer.querySelector('h3').innerText = '2-Stop Connection Paths';
+        const hubsHeading = document.createElement('h3');
+        hubsHeading.className = 'route-panel-subheading';
+        hubsHeading.innerText = '2-Stop Connection Paths';
+        topHubsList.parentElement.appendChild(hubsHeading);
+
+        const hubsList = document.createElement('ul');
+        hubsList.id = 'route-hubs-list';
+        hubsList.className = 'route-secondary-list';
 
         const sortedPathsToShow = twoStopPaths
             .sort((a, b) => {
@@ -1889,17 +1920,16 @@ function applyPointToPointFilter(fromIdx, toIdx) {
                 state.hoveredPath = null;
                 markDirty();
             });
-            topHubsList.appendChild(li);
+            hubsList.appendChild(li);
         });
 
         if (sortedPathsToShow.length === 0) {
             const li = document.createElement('li');
             li.innerHTML = `<span class="hub-name">No 2-stop paths found</span>`;
-            topHubsList.appendChild(li);
+            hubsList.appendChild(li);
         }
+        topHubsList.parentElement.appendChild(hubsList);
         topHubsContainer.style.display = 'block';
-    } else {
-        topHubsContainer.style.display = 'none';
     }
 
     markDirty();
@@ -1976,6 +2006,7 @@ function resetFilter() {
     document.getElementById('stat-extra-value').innerText = Object.keys(state.airlines).length;
 
     document.getElementById('stats-desc-text').innerText = "Showing the global commercial flights network. Search and select an airline or an airport above to analyze specific routes and connectivity hubs.";
+    clearRouteSecondaryLists();
     document.getElementById('top-hubs-container').style.display = 'none';
 
     // Smoothly reset camera to default view when filters are cleared
@@ -2125,6 +2156,8 @@ function getUniqueAirportsCount(routes) {
 
 // Side panel statistical analysis
 function displayAirlineHubs(al) {
+    clearRouteSecondaryLists();
+
     const topHubsContainer = document.getElementById('top-hubs-container');
     const topHubsList = document.getElementById('top-hubs-list');
     const descText = document.getElementById('stats-desc-text');
@@ -2154,7 +2187,44 @@ function displayAirlineHubs(al) {
     topHubsContainer.querySelector('h3').innerText = "Top Airline Hubs";
 }
 
+function clearRouteSecondaryLists() {
+    const topHubsContainer = document.getElementById('top-hubs-container');
+    if (!topHubsContainer) return;
+    topHubsContainer.querySelectorAll('.route-panel-subheading, .route-secondary-list').forEach(el => el.remove());
+}
+
+function displayRouteAirlines(airlines, fromAp, toAp) {
+    clearRouteSecondaryLists();
+
+    const topHubsContainer = document.getElementById('top-hubs-container');
+    const topHubsList = document.getElementById('top-hubs-list');
+    const heading = topHubsContainer.querySelector('h3');
+
+    heading.innerText = `Airlines on ${fromAp.iata} → ${toAp.iata}`;
+    topHubsList.innerHTML = '';
+
+    if (airlines.length === 0) {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="hub-name">No direct airline operators</span><span class="hub-count">—</span>`;
+        topHubsList.appendChild(li);
+    } else {
+        airlines.forEach(al => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="hub-name">${al.name}</span><span class="hub-count">${al.iata}</span>`;
+            topHubsList.appendChild(li);
+        });
+    }
+
+    topHubsContainer.style.display = 'block';
+    // Bring operating airlines into view when a city-pair is selected
+    requestAnimationFrame(() => {
+        topHubsContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+}
+
 function displayLocationAirlines(apIdx) {
+    clearRouteSecondaryLists();
+
     const ap = state.airports[apIdx];
     const topHubsContainer = document.getElementById('top-hubs-container');
     const topHubsList = document.getElementById('top-hubs-list');
