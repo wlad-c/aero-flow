@@ -4,7 +4,12 @@ An interactive, high-fidelity world map flight connections visualizer using **Tr
 
 **Live site:** [https://wlad-c.github.io/aero-flow/](https://wlad-c.github.io/aero-flow/)
 
-**iOS Home Screen:** Open that exact `/aero-flow/` URL in Safari, then Share → Add to Home Screen. If an older icon opens GitHub’s 404 page, delete it and add the app again after a refresh — stale installs can keep launching `https://wlad-c.github.io/` instead of `/aero-flow/`.
+**iOS Home Screen:**
+1. Merge/deploy the latest manifest fix first (live site must show `start_url` of `https://wlad-c.github.io/aero-flow/`).
+2. On iPhone: Settings → Apps → Safari → Advanced → Website Data → remove `github.io` entries.
+3. Delete any existing AeroFlow home-screen icon.
+4. In Safari open **https://wlad-c.github.io/aero-flow/** (confirm the map loads).
+5. Share → Add to Home Screen.
 
 ![AeroFlow Interface Mockup](assets/screenshot.png)
 

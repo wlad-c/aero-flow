@@ -870,8 +870,8 @@ function initUI() {
 // Initialize Bottom Status Bar (Live Release & Last Update time)
 function initStatusBar() {
     // 1. Live Release Metadata
-    const releaseVersion = "v1.5.1"; // Corresponds to script v=16 — iOS PWA start_url absolute path
-    const lastUpdateIso = "2026-11-02T06:30:00Z"; // ISO 8601 UTC timestamp of last update
+    const releaseVersion = "v1.5.2"; // Corresponds to script v=17 — absolute HTTPS PWA start_url for iOS
+    const lastUpdateIso = "2026-11-02T06:35:00Z"; // ISO 8601 UTC timestamp of last update
     
     // Set Version Text
     const versionVal = document.getElementById('status-version-val');
