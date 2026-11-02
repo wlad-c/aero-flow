@@ -622,6 +622,11 @@ input[type="text"]:focus + .search-icon {
 .sub-hubs-list li span.hub-count {
     color: var(--color-text-secondary);
     font-weight: 600;
+    text-align: right;
+    max-width: 55%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Projection Selector Buttons */

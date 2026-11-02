@@ -1622,7 +1622,8 @@ function applyPointToPointFilter(fromIdx, toIdx) {
     });
 
     // Find hubs that also connect to toIdx
-    const seenHubs = new Map(); // hubIdx -> airline for Leg 2
+    const seenHubs = new Map(); // hubIdx -> first airline for Leg 2 (map rendering)
+    const hubLeg2Airlines = new Map(); // hubIdx -> unique airlines for Leg 2 (sidebar)
 
     Object.entries(state.airlines).forEach(([alIata, al]) => {
         al.routes.forEach(r => {
@@ -1632,8 +1633,12 @@ function applyPointToPointFilter(fromIdx, toIdx) {
             // r goes toIdx → hub (undirected)
             if (r[0] === toIdx && fromHubs.has(r[1])) hubIdx = r[1];
 
-            if (hubIdx !== null && !seenHubs.has(hubIdx)) {
-                seenHubs.set(hubIdx, alIata);
+            if (hubIdx !== null) {
+                if (!hubLeg2Airlines.has(hubIdx)) hubLeg2Airlines.set(hubIdx, new Set());
+                hubLeg2Airlines.get(hubIdx).add(alIata);
+                if (!seenHubs.has(hubIdx)) {
+                    seenHubs.set(hubIdx, alIata);
+                }
             }
         });
     });
@@ -1788,6 +1793,11 @@ function applyPointToPointFilter(fromIdx, toIdx) {
     initParticles();
 
     const directCount = directRoutes.length;
+    const directAirlineCodes = uniqueAirlineCodes(directRoutes.map(r => r.airline));
+    const directAirlineNames = directAirlineCodes.map(getAirlineLabel);
+    const directAirlinesPhrase = directAirlineNames.length
+        ? ` (${directAirlineNames.join(', ')})`
+        : '';
     let hubCount = 0;
     if (state.connectionType === 'connecting') {
         hubCount = seenHubs.size;
@@ -1810,25 +1820,25 @@ function applyPointToPointFilter(fromIdx, toIdx) {
     const descText = document.getElementById('stats-desc-text');
     if (state.connectionType === 'connecting') {
         if (directCount > 0) {
-            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''} found between ${fromAp.city} and ${toAp.city}. ${hubCount} possible 1-stop connection hubs shown.`;
+            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''}${directAirlinesPhrase} found between ${fromAp.city} and ${toAp.city}. ${hubCount} possible 1-stop connection hubs shown.`;
         } else {
             descText.innerText = `No direct flights between ${fromAp.city} and ${toAp.city}. Showing ${hubCount} possible 1-stop connection hub${hubCount !== 1 ? 's' : ''}.`;
         }
     } else if (state.connectionType === 'connecting-2') {
         if (directCount > 0) {
-            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''} found between ${fromAp.city} and ${toAp.city}. ${hubCount} possible 2-stop connection paths found.`;
+            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''}${directAirlinesPhrase} found between ${fromAp.city} and ${toAp.city}. ${hubCount} possible 2-stop connection paths found.`;
         } else {
             descText.innerText = `No direct flights between ${fromAp.city} and ${toAp.city}. Showing ${hubCount} possible 2-stop connection path${hubCount !== 1 ? 's' : ''}.`;
         }
     } else {
         if (directCount > 0) {
-            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''} found between ${fromAp.city} and ${toAp.city}.`;
+            descText.innerText = `${directCount} direct flight${directCount > 1 ? 's' : ''}${directAirlinesPhrase} found between ${fromAp.city} and ${toAp.city}.`;
         } else {
             descText.innerText = `No direct flights between ${fromAp.city} and ${toAp.city}. Switch to 1-Stop to see connection hubs.`;
         }
     }
 
-    // Show hubs list
+    // Show hubs / airline list
     const topHubsContainer = document.getElementById('top-hubs-container');
     const topHubsList = document.getElementById('top-hubs-list');
     topHubsList.innerHTML = '';
@@ -1836,16 +1846,21 @@ function applyPointToPointFilter(fromIdx, toIdx) {
     if (state.connectionType === 'connecting') {
         topHubsContainer.querySelector('h3').innerText = '1-Stop Connection Hubs';
 
-        const sortedHubs = [...seenHubs.keys()]
-            .map(idx => state.airports[idx])
-            .sort((a, b) => (b.flightsCount || 0) - (a.flightsCount || 0))
+        const sortedHubIndices = [...seenHubs.keys()]
+            .sort((a, b) => (state.airports[b].flightsCount || 0) - (state.airports[a].flightsCount || 0))
             .slice(0, 5);
 
-        sortedHubs.forEach(hub => {
+        sortedHubIndices.forEach(hubIdx => {
+            const hub = state.airports[hubIdx];
+            const leg1Codes = uniqueAirlineCodes(fromHubs.get(hubIdx) || []);
+            const leg2Codes = [...(hubLeg2Airlines.get(hubIdx) || [])];
+            // Compact IATA codes on the right; full names on hover
+            const airlineLabel = `${formatAirlineCodes(leg1Codes, '/')} → ${formatAirlineCodes(leg2Codes, '/')}`;
+            const airlineTitle = `${airlineCodesToNames(leg1Codes, ' / ')} → ${airlineCodesToNames(leg2Codes, ' / ')}`;
             const li = document.createElement('li');
-            li.innerHTML = `<span class="hub-name">${hub.city} (${hub.iata})</span><span class="hub-count">via hub</span>`;
+            li.innerHTML = `<span class="hub-name">${hub.city} (${hub.iata})</span><span class="hub-count" title="${escapeHtml(airlineTitle)}">${airlineLabel}</span>`;
             li.addEventListener('mouseenter', () => {
-                state.hoveredHubIndex = state.airports.indexOf(hub);
+                state.hoveredHubIndex = hubIdx;
                 markDirty();
             });
             li.addEventListener('mouseleave', () => {
@@ -1855,7 +1870,7 @@ function applyPointToPointFilter(fromIdx, toIdx) {
             topHubsList.appendChild(li);
         });
 
-        if (sortedHubs.length === 0) {
+        if (sortedHubIndices.length === 0) {
             const li = document.createElement('li');
             li.innerHTML = `<span class="hub-name">No 1-stop hubs found</span>`;
             topHubsList.appendChild(li);
@@ -1879,8 +1894,10 @@ function applyPointToPointFilter(fromIdx, toIdx) {
         sortedPathsToShow.forEach(path => {
             const h1 = state.airports[path.h1];
             const h2 = state.airports[path.h2];
+            const airlineLabel = formatAirlineCodes([path.al1, path.al2, path.al3]);
+            const airlineNames = airlineCodesToNames([path.al1, path.al2, path.al3]);
             const li = document.createElement('li');
-            li.innerHTML = `<span class="hub-name">${fromAp.iata} → ${h1.iata} → ${h2.iata} → ${toAp.iata}</span><span class="hub-count">2 stops</span>`;
+            li.innerHTML = `<span class="hub-name">${fromAp.iata} → ${h1.iata} → ${h2.iata} → ${toAp.iata}</span><span class="hub-count" title="${escapeHtml(airlineNames)}">${airlineLabel}</span>`;
             li.addEventListener('mouseenter', () => {
                 state.hoveredPath = path;
                 markDirty();
@@ -1897,6 +1914,15 @@ function applyPointToPointFilter(fromIdx, toIdx) {
             li.innerHTML = `<span class="hub-name">No 2-stop paths found</span>`;
             topHubsList.appendChild(li);
         }
+        topHubsContainer.style.display = 'block';
+    } else if (directAirlineCodes.length > 0) {
+        topHubsContainer.querySelector('h3').innerText = 'Direct Airlines';
+        directAirlineCodes.forEach(code => {
+            const al = state.airlines[code];
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="hub-name">${al ? al.name : code}</span><span class="hub-count">${code}</span>`;
+            topHubsList.appendChild(li);
+        });
         topHubsContainer.style.display = 'block';
     } else {
         topHubsContainer.style.display = 'none';
@@ -2121,6 +2147,34 @@ function getUniqueAirportsCount(routes) {
         uniqueSet.add(r.dst.iata);
     });
     return uniqueSet.size;
+}
+
+function uniqueAirlineCodes(codes) {
+    return [...new Set((codes || []).filter(Boolean))];
+}
+
+function getAirlineLabel(iata) {
+    const al = state.airlines[iata];
+    return al ? al.name : iata;
+}
+
+function formatAirlineCodes(codes, separator = ' → ', max = 3) {
+    const unique = uniqueAirlineCodes(codes);
+    if (!unique.length) return '—';
+    if (unique.length <= max) return unique.join(separator);
+    return `${unique.slice(0, max).join(separator)}+${unique.length - max}`;
+}
+
+function airlineCodesToNames(codes, separator = ' / ') {
+    return uniqueAirlineCodes(codes).map(getAirlineLabel).join(separator);
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 // Side panel statistical analysis
